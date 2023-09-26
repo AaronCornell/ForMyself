@@ -1,0 +1,8 @@
+1. 解决触碰边界无法结束游戏的问题，以及游戏结界判定的问题：删去边界出现代码，增加Snake类成员变量，判定边界要 + -；
+2. Bottom居然是上面，而Top居然是下面，他妈的；
+3. 重新开始游戏时，幕布会混乱 --> 待解决
+4. 修复果实生成错乱的问题：
+
+1. Solved the problem of game not end when snake touches the edges;
+2. Fixed the problem of determination of edges (When judging location, bottom is actually the top, Vice versa, Damn it);
+3. Fixed the problem of invalid generation location of fruits and snakes;
