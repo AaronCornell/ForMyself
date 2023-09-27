@@ -1,9 +1,10 @@
-﻿// This sample is to help solve problems.
+// This sample is to help solve problems.
 // TEST: SNAKE
 
 
 // All connected to GitHub, except for Lin
 
+using System.Data;
 using System.Drawing;
 using System.Runtime.InteropServices;
 
@@ -19,6 +20,11 @@ namespace Snake
         private readonly Score score = new Score();
         private readonly Gamer gamer = new Gamer();
 
+        private DateTime fruitTime = DateTime.Now;  // store the fruit time 
+
+        private DateTime fillEmptyTime = DateTime.Now;
+        private Point preFruit = new Point();
+
         public bool GameOver { get; set; } = false;
 
         public Game() => Initialize();
@@ -27,7 +33,7 @@ namespace Snake
         {
             canvas.Draw();
             snake.Initialize(canvas);
-            fruit.Spawn(canvas, snake);
+            fruit.Spawn(canvas, snake, score);
             GameOver = false;
             score.Initialize();
         }
@@ -52,7 +58,17 @@ namespace Snake
                 {
                     snake.Move(canvas, true);
                     score.Current += fruit.Value;
-                    fruit.Spawn(canvas, snake);
+
+                    // Keep print that 
+                    preFruit = fruit.Location;
+                    Utility.Write('■'.ToString(), preFruit.X, preFruit.Y, Settings.Snake.TailForeground, Settings.Snake.TailBackground);
+                    fillEmptyTime = DateTime.Now;
+
+
+                    fruit.Spawn(canvas, snake, score);
+                    fruitTime = DateTime.Now;   // Refresh the fruit time
+                  
+                     
 
                     Console.Title = $"Score: {score.Current}. Tail: {snake.Tail.Length}";   // Title shows the score
                 }
@@ -67,6 +83,20 @@ namespace Snake
                     snake.Move(canvas, false);
                 }
 
+                // The fruit's location will change
+                if (score.Current > 10 && DateTime.Now - fruitTime > TimeSpan.FromSeconds(9-fruit.Value))
+                {
+                    fruit.Spawn(canvas, snake, score);
+                    fruitTime = DateTime.Now;
+                }
+
+                if (DateTime.Now - fillEmptyTime >= TimeSpan.FromMilliseconds(snake.Tail.Length+1))
+                {
+                    canvas.Erase(preFruit);
+                }
+
+
+                // Control the fresh rate
                 Thread.Sleep(Settings.HeartBeatMilliseconds);
             }
         }
@@ -261,20 +291,28 @@ namespace Snake
         public Point Location { get; set; }
         public int Value { get; set; }
 
-        public void Spawn(Canvas canvas, Snake snake)
+        public void Spawn(Canvas canvas, Snake snake, Score score)
         {
             canvas.Erase(Location);
-
             Location = Utility.GetRandomSafePoint(canvas, snake.Points);
-            Value = Random.Shared.Next(1, 10);
-            Utility.Write(Value.ToString(), Location.X, Location.Y, Settings.Fruit.Foreground, Settings.Fruit.Background);
+
+            if (score.Current <= 10)
+            {
+                Value = Random.Shared.Next(1, 10);
+            } 
+            else if (score.Current > 10)
+            {
+                Value = Random.Shared.Next(2, 5);
+            }
+            Utility.Write(Value.ToString(), Location.X, Location.Y, Settings.Fruit.Foreground, Settings.Fruit.Background);        
         }
+        
     }
 
     public static class Settings
     {
         public enum Direction { Left, Right, Up, Down, Default }
-        public static readonly int HeartBeatMilliseconds = 100;
+        public static readonly int HeartBeatMilliseconds = 100;     // Fresh rate
 
         // public static readonly string DatabaseConnectionString = Environment.GetEnvironmentVariable("SnakeDatabaseConnectionString") ?? throw new Exception("SnakeDatabaseConnectionString environment variable is missing.");
 
@@ -323,8 +361,8 @@ namespace Snake
             Point point;
             do
             {
-                var x = Random.Shared.Next(canvas.Inner.Left, canvas.Inner.Right-1);
-                var y = Random.Shared.Next(canvas.Inner.Top+2, canvas.Inner.Bottom+1);
+                var x = Random.Shared.Next(canvas.Inner.Left, canvas.Inner.Right-1);    // Have to -1 +2 +1
+                var y = Random.Shared.Next(canvas.Inner.Top+2, canvas.Inner.Bottom+1);  // Or the point would not safe
                 point = new Point(x, y);
 
             } while (avoid.Contains(point));
@@ -363,7 +401,7 @@ namespace Snake
             Console.Write(text);
             Console.ResetColor();
         }
-
+ 
         public static char ConvertDirectionToChar(Settings.Direction direction)
         {
             return direction switch
@@ -378,9 +416,15 @@ namespace Snake
 
         public static Settings.Direction ConvertDirectionFromKey(ConsoleKeyInfo keyInfo, Settings.Direction currentDirection)
         {
+            // The key to control the direction
             var desiredDirection = keyInfo.Key switch
             {
-                ConsoleKey.LeftArrow => Settings.Direction.Left,
+                ConsoleKey.W => Settings.Direction.Up,  // WSAD key
+                ConsoleKey.S => Settings.Direction.Down,
+                ConsoleKey.A => Settings.Direction.Left,
+                ConsoleKey.D => Settings.Direction.Right,
+
+                ConsoleKey.LeftArrow => Settings.Direction.Left, // Arrow key
                 ConsoleKey.RightArrow => Settings.Direction.Right,
                 ConsoleKey.UpArrow => Settings.Direction.Up,
                 ConsoleKey.DownArrow => Settings.Direction.Down,
@@ -419,9 +463,15 @@ namespace Snake
             //Console.Error.WriteLine($"Snake's Head: {point.X}, {point.Y}");
 
 
-
-            return point.X >= canvas.Left && point.X < canvas.Right-1 &&
+            return point.X >= canvas.Left && point.X < canvas.Right &&
                    point.Y >= canvas.Top+2 && point.Y <= canvas.Bottom+1;
         }
+
+        /*public static void PauseGame(out ConsoleKey key, params ConsoleKey[] allowed)
+        {
+            
+        }*/
+
+
     }
 }
