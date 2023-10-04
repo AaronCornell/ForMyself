@@ -8,6 +8,8 @@ using System.Data;
 using System.Drawing;
 using System.Runtime.InteropServices;
 
+
+
 new Snake.Game().Start();
 
 namespace Snake
@@ -22,8 +24,7 @@ namespace Snake
 
         private DateTime fruitTime = DateTime.Now;  // store the fruit time 
 
-        private DateTime fillEmptyTime = DateTime.Now;
-        private Point preFruit = new Point();
+        private Point preFruit = new Point();   // store the location of previous fruit
 
         public bool GameOver { get; set; } = false;
 
@@ -44,7 +45,7 @@ namespace Snake
             {
                 if (Console.KeyAvailable)
                 {
-                    var keyInfo = Console.ReadKey(true);
+                    var keyInfo = Console.ReadKey(true);    // 
                     snake.Direction = Utility.ConvertDirectionFromKey(keyInfo, snake.Direction);
                 }
                 // Snake touch itself --> End game
@@ -56,19 +57,16 @@ namespace Snake
                 // Snake touch the fruit --> Score increase
                 else if (snake.Head == fruit.Location)
                 {
-                    snake.Move(canvas, true);
+                    preFruit = fruit.Location;
+                    snake.Move(canvas, true, preFruit);
                     score.Current += fruit.Value;
 
-                    // Keep print that 
-                    preFruit = fruit.Location;
-                    Utility.Write('■'.ToString(), preFruit.X, preFruit.Y, Settings.Snake.TailForeground, Settings.Snake.TailBackground);
-                    fillEmptyTime = DateTime.Now;
-
-
+                    // Fill that empty
+                    preFruit = snake.Tail[0];
+                    Utility.Write(" ", preFruit.X, preFruit.Y, Settings.Snake.HeadForeground, Settings.Snake.HeadForeground);
+                   
                     fruit.Spawn(canvas, snake, score);
                     fruitTime = DateTime.Now;   // Refresh the fruit time
-                  
-                     
 
                     Console.Title = $"Score: {score.Current}. Tail: {snake.Tail.Length}";   // Title shows the score
                 }
@@ -80,21 +78,16 @@ namespace Snake
                 }
                 else
                 {
-                    snake.Move(canvas, false);
+                    snake.Move(canvas, false, preFruit);
                 }
 
                 // The fruit's location will change
-                if (score.Current > 10 && DateTime.Now - fruitTime > TimeSpan.FromSeconds(9-fruit.Value))
+                if (score.Current > 10 && DateTime.Now - fruitTime > TimeSpan.FromSeconds(9 - fruit.Value))
                 {
+                    canvas.Erase(fruit.Location);
                     fruit.Spawn(canvas, snake, score);
                     fruitTime = DateTime.Now;
-                }
-
-                if (DateTime.Now - fillEmptyTime >= TimeSpan.FromMilliseconds(snake.Tail.Length+1))
-                {
-                    canvas.Erase(preFruit);
-                }
-
+                }               
 
                 // Control the fresh rate
                 Thread.Sleep(Settings.HeartBeatMilliseconds);
@@ -107,7 +100,13 @@ namespace Snake
 
             if (gamer.AskRestart())
             {
-                Initialize();
+                //Initialize();
+                Console.Clear();
+                
+                snake.Initialize(canvas);
+                fruit.Spawn(canvas, snake, score);
+                GameOver = false;
+                score.Initialize();
                 Start();
             }
         }
@@ -165,7 +164,7 @@ namespace Snake
     {
         private Rectangle Border { get; set; }
 
-        public Rectangle Inner => new(Border.X+1, Border.Y-1, Border.Width - 2, Border.Height - 2);
+        public Rectangle Inner => new(Border.X + 1, Border.Y - 1, Border.Width - 2, Border.Height - 2);
 
         public void Erase(Point point)
         {
@@ -174,6 +173,8 @@ namespace Snake
 
         public void Draw()
         {
+            Console.Clear();
+
             FormatConsole();
 
             Border = Settings.Canvas.Size;
@@ -217,6 +218,7 @@ namespace Snake
         public bool ReachEdge { get; set; } = false;    // the flag that snake touch the edge
         public Settings.Direction Direction { get; set; } = Settings.Direction.Default;
 
+     
         public void Initialize(Canvas canvas)
         {
             // Erase all points if the user re-start the game
@@ -232,7 +234,7 @@ namespace Snake
             ReachEdge = false;
         }
 
-        public void Move(Canvas canvas, bool increase)
+        public void Move(Canvas canvas, bool increase, Point preFruit)
         {
             if (Direction == Settings.Direction.Default)
             {
@@ -251,10 +253,20 @@ namespace Snake
                 return;
             }
 
+            bool isFruitLocation = Head == preFruit;
+
             if (Tail.Length == 0 && !increase)
             {
                 DrawHead();
-                canvas.Erase(prevHead);
+                // Solve the problem of empty display
+                if (!isFruitLocation)
+                {
+                    canvas.Erase(prevHead); // If the snake doesn't on the original fruit location
+                }                           // Draw the moving as usual
+                else
+                {
+                    DrawTail(prevHead); // fill the empty location
+                }
             }
             else if (!increase)
             {
@@ -293,20 +305,20 @@ namespace Snake
 
         public void Spawn(Canvas canvas, Snake snake, Score score)
         {
-            canvas.Erase(Location);
+            
             Location = Utility.GetRandomSafePoint(canvas, snake.Points);
 
             if (score.Current <= 10)
             {
                 Value = Random.Shared.Next(1, 10);
-            } 
+            }
             else if (score.Current > 10)
             {
                 Value = Random.Shared.Next(2, 5);
             }
-            Utility.Write(Value.ToString(), Location.X, Location.Y, Settings.Fruit.Foreground, Settings.Fruit.Background);        
+            Utility.Write(Value.ToString(), Location.X, Location.Y, Settings.Fruit.Foreground, Settings.Fruit.Background);
         }
-        
+
     }
 
     public static class Settings
@@ -334,8 +346,8 @@ namespace Snake
 
         public struct Snake
         {
-            public static readonly char HeadRightChar = '>'; // not all will render ▶
-            public static readonly char HeadLeftChar = '<'; // not all will render ◀
+            public static readonly char HeadRightChar = '▶'; // not all will render ▶
+            public static readonly char HeadLeftChar = '◀'; // not all will render ◀
             public static readonly char HeadUpChar = '▲';
             public static readonly char HeadDownChar = '▼';
             public static readonly char HeadStopChar = '■';
@@ -361,8 +373,8 @@ namespace Snake
             Point point;
             do
             {
-                var x = Random.Shared.Next(canvas.Inner.Left, canvas.Inner.Right-1);    // Have to -1 +2 +1
-                var y = Random.Shared.Next(canvas.Inner.Top+2, canvas.Inner.Bottom+1);  // Or the point would not safe
+                var x = Random.Shared.Next(canvas.Inner.Left, canvas.Inner.Right - 1);    // Have to -1 +2 +1
+                var y = Random.Shared.Next(canvas.Inner.Top + 2, canvas.Inner.Bottom + 1);  // Or the point would not safe
                 point = new Point(x, y);
 
             } while (avoid.Contains(point));
@@ -401,7 +413,7 @@ namespace Snake
             Console.Write(text);
             Console.ResetColor();
         }
- 
+
         public static char ConvertDirectionToChar(Settings.Direction direction)
         {
             return direction switch
@@ -464,7 +476,7 @@ namespace Snake
 
 
             return point.X >= canvas.Left && point.X < canvas.Right &&
-                   point.Y >= canvas.Top+2 && point.Y <= canvas.Bottom+1;
+                   point.Y >= canvas.Top + 2 && point.Y <= canvas.Bottom + 1;
         }
 
         /*public static void PauseGame(out ConsoleKey key, params ConsoleKey[] allowed)
