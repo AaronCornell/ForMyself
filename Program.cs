@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 
 
 
+
 new Snake.Game().Start();
 
 namespace Snake
@@ -90,7 +91,19 @@ namespace Snake
                 }               
 
                 // Control the fresh rate
-                Thread.Sleep(Settings.HeartBeatMilliseconds);
+                if (score.Current < 20)
+                {
+                    Thread.Sleep(Settings.HeartBeatMilliseconds);
+                } 
+                else if (score.Current >= 20 && score.Current <= 40)
+                {
+                    Thread.Sleep(Settings.HeartBeatMilliseconds * 2);
+                } 
+                else 
+                {
+                    Thread.Sleep(Settings.HeartBeatMilliseconds * 4);
+                }
+                
             }
         }
 
@@ -99,14 +112,9 @@ namespace Snake
             GameOver = true;
 
             if (gamer.AskRestart())
-            {
-                //Initialize();
+            {   
                 Console.Clear();
-                
-                snake.Initialize(canvas);
-                fruit.Spawn(canvas, snake, score);
-                GameOver = false;
-                score.Initialize();
+                Initialize();
                 Start();
             }
         }
@@ -173,9 +181,10 @@ namespace Snake
 
         public void Draw()
         {
-            Console.Clear();
 
             FormatConsole();
+
+            Console.Clear();
 
             Border = Settings.Canvas.Size;
 
@@ -205,7 +214,7 @@ namespace Snake
                     Console.SetBufferSize(Settings.Canvas.Size.Right, Settings.Canvas.Size.Bottom);
                 }
                 Console.CursorVisible = false;
-                Console.Clear();
+                
             }
         }
     }
@@ -324,13 +333,13 @@ namespace Snake
     public static class Settings
     {
         public enum Direction { Left, Right, Up, Down, Default }
-        public static readonly int HeartBeatMilliseconds = 100;     // Fresh rate
+        public static readonly int HeartBeatMilliseconds = 70;     // Fresh rate
 
         // public static readonly string DatabaseConnectionString = Environment.GetEnvironmentVariable("SnakeDatabaseConnectionString") ?? throw new Exception("SnakeDatabaseConnectionString environment variable is missing.");
 
         public struct Canvas
         {
-            public static readonly Rectangle Size = new(5, 5, 40, 20);
+            public static readonly Rectangle Size = new(5, 5, 50, 25);
             public static readonly char HorizontalChar = '─';
             public static readonly char VerticalChar = '│';
             public static readonly char TopLeftChar = '┌';
@@ -361,7 +370,7 @@ namespace Snake
 
         public struct Fruit
         {
-            public static readonly ConsoleColor Background = ConsoleColor.White;
+            public static readonly ConsoleColor Background = ConsoleColor.Gray;
             public static readonly ConsoleColor Foreground = ConsoleColor.Blue;
         }
     }
